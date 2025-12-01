@@ -4,13 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a PowerShell utility toolkit for managing Claude Code CLI sessions on Windows. It provides an interactive session manager that launches Claude CLI instances in separate Windows Terminal tabs with automatic tab naming, color coding, and logging.
+This is a PowerShell utility toolkit for managing Claude Code CLI sessions on Windows. It provides an interactive session manager with arrow key navigation that launches Claude CLI instances in separate Windows Terminal tabs with color coding and logging.
 
 ## Project Structure
 
 - **scripts/cpt.ps1** - Claude Session Manager v3.3 (main entry point)
-  - Interactive menu to select projects from `C:\Projects\Zespri-Github`
-  - Launches Claude CLI in new Windows Terminal tabs with random colors
+  - **Auto-relaunch feature**: Automatically relaunches itself in a light gray colored tab if not already running in one
+  - Two-step folder selection process:
+    1. Select a root folder from `C:\Projects\`
+    2. Select project subfolders within that root
+  - Renames the session manager tab to "CPT:[RootFolderName]"
+  - Tab color: Light gray (#C0C0C0) for easy identification
+  - Interactive menu with arrow key (↑/↓) navigation or number (1-9) selection
+  - Launches Claude CLI in new Windows Terminal tabs with cycling colors
   - Supports opening multiple Claude sessions sequentially
   - Uses relative paths to invoke ClaudeTabWrapper.ps1
   - Date-based logging to `claude-power-tools\logs\`
@@ -18,7 +24,6 @@ This is a PowerShell utility toolkit for managing Claude Code CLI sessions on Wi
 - **scripts/claude-power-tools/ClaudeTabWrapper.ps1** - Core wrapper script that:
   - Changes to a specified project directory
   - Launches Claude CLI in that context
-  - Automatically renames the terminal tab to "Claude [ProjectName]" using a timer (runs every 500ms)
   - Logs all activities with date-based log files
   - Parameters: `$ProjectName` (display name), `$ProjectPath` (working directory)
 
@@ -27,17 +32,17 @@ This is a PowerShell utility toolkit for managing Claude Code CLI sessions on Wi
 ## Architecture
 
 ### Session Manager (cpt.ps1)
-- Provides an interactive menu listing all projects in a base directory
-- Launches Windows Terminal tabs with color-coded tabs using `wt.exe`
-- Each tab runs ClaudeTabWrapper.ps1 with PowerShell 7.x in `-NoExit` mode
-- Tab colors cycle through 8 predefined colors to help visually distinguish multiple sessions
+- **Auto-relaunch mechanism**: Detects if running in a colored tab; if not, relaunches itself in a new light gray (#C0C0C0) tab
+- **Two-tier folder selection**: First picks a root folder from `C:\Projects\`, then lists subfolders within that root
+- **Interactive menu system**: Uses arrow keys or number keys with visual feedback (green highlight for selection)
+- **Tab management**: The session manager tab is always light gray, renames to "CPT:[RootFolderName]" for easy identification
+- **Tab launching**: Creates Windows Terminal tabs with `wt.exe` using PowerShell 7.x in `-NoExit` mode
+- **Color coding**: Project tabs cycle through 8 predefined colors to visually distinguish multiple Claude sessions
 
 ### Tab Wrapper (ClaudeTabWrapper.ps1)
-- Uses an aggressive timer-based approach to maintain terminal tab titles
-- A `System.Timers.Timer` runs every 150ms to enforce tab naming
-- Uses both PowerShell `WindowTitle` and ANSI escape sequences for maximum compatibility
-- Overcomes Claude CLI's behavior of resetting the terminal title on startup
-- The timer is properly disposed when Claude exits
+- Receives project name and path parameters from the session manager
+- Changes to the project directory before launching Claude CLI
+- Logs all startup and shutdown events
 - All paths (logging, wrapper location) are relative for portability
 
 ## Commands
@@ -58,10 +63,18 @@ cpt.ps1
 ```
 
 The Session Manager will:
-1. Display a numbered list of projects from `C:\Projects\Zespri-Github`
-2. Prompt you to select a project by number
-3. Launch a new Windows Terminal tab with Claude CLI in that project directory
-4. Ask if you want to open another tab
+1. Auto-relaunch in a light gray colored tab if needed (for easy visual identification)
+2. Display an interactive menu of root folders from `C:\Projects\`
+3. After selecting a root folder, rename its tab to "CPT:[RootFolderName]"
+4. Display project subfolders within the selected root folder
+5. Launch a new Windows Terminal tab with Claude CLI in the selected project directory (with cycling colors)
+6. Ask if you want to open another tab
+
+Navigation:
+- Use **arrow keys** (↑/↓) to navigate through options
+- Press **Enter** to confirm selection
+- Or press **1-9** to quickly select by number
+- Press **Q** to quit the current menu
 
 ## Logging
 

@@ -7,7 +7,21 @@ trap {
     continue
 }
 
-$BasePath = "C:\Projects\Zespri-Github"
+# ============================================
+# Auto-relaunch in colored tab if needed
+# ============================================
+if (-not $env:CPT_COLORED_TAB) {
+    # Not running in a colored tab yet - relaunch with color
+    $env:CPT_COLORED_TAB = "1"
+    $scriptPath = $PSCommandPath
+    wt.exe -w 0 nt `
+        --title "Claude PowerTools" `
+        --tabColor "#C0C0C0" `
+        pwsh -NoExit -Command "& '$scriptPath'"
+    exit
+}
+
+$RootProjectsPath = "C:\Projects"
 $TabColors = @("#0078D4", "#2D7D46", "#8B2F97", "#D83B01", "#498205", "#5C2D91", "#E81123", "#FF8C00")
 $global:ClaudeTabIndex = 0
 
@@ -50,9 +64,112 @@ function Write-Log {
 }
 
 # ============================================
-# Folder Selection
+# Interactive Menu with Arrow Key Navigation
+# ============================================
+function Show-InteractiveMenu {
+    param(
+        [string]$Title,
+        [array]$Items
+    )
+
+    if ($Items.Count -eq 0) {
+        Write-Host "No items available." -ForegroundColor Red
+        return $null
+    }
+
+    $selectedIndex = 0
+    $exitMenu = $false
+
+    while (-not $exitMenu) {
+        Clear-Host
+        Write-Host "==== $Title ====" -ForegroundColor Cyan
+        Write-Host ""
+
+        for ($i = 0; $i -lt $Items.Count; $i++) {
+            if ($i -eq $selectedIndex) {
+                Write-Host "> " -NoNewline -ForegroundColor Green
+                Write-Host $Items[$i].Name -ForegroundColor Green
+            }
+            else {
+                Write-Host "  " -NoNewline
+                Write-Host $Items[$i].Name
+            }
+        }
+
+        Write-Host ""
+        Write-Host "Use " -NoNewline
+        Write-Host "↑/↓" -NoNewline -ForegroundColor Yellow
+        Write-Host " or " -NoNewline
+        Write-Host "1-9" -NoNewline -ForegroundColor Yellow
+        Write-Host " to select, " -NoNewline
+        Write-Host "Enter" -NoNewline -ForegroundColor Yellow
+        Write-Host " to confirm, " -NoNewline
+        Write-Host "Q" -NoNewline -ForegroundColor Yellow
+        Write-Host " to quit"
+
+        $key = $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+
+        switch ($key.VirtualKeyCode) {
+            38 {
+                # Up arrow
+                $selectedIndex = ($selectedIndex - 1)
+                if ($selectedIndex -lt 0) { $selectedIndex = $Items.Count - 1 }
+            }
+            40 {
+                # Down arrow
+                $selectedIndex = ($selectedIndex + 1) % $Items.Count
+            }
+            13 {
+                # Enter
+                $exitMenu = $true
+            }
+            81 {
+                # Q key
+                return $null
+            }
+            default {
+                # Check for number keys (1-9)
+                if ($key.Character -match '^\d$') {
+                    $num = [int]::Parse($key.Character)
+                    if ($num -ge 1 -and $num -le $Items.Count) {
+                        $selectedIndex = $num - 1
+                        $exitMenu = $true
+                    }
+                }
+            }
+        }
+    }
+
+    Write-Log ("Selected: " + $Items[$selectedIndex].Name)
+    return $Items[$selectedIndex]
+}
+
+# ============================================
+# Root Folder Selection
+# ============================================
+function Pick-RootFolder {
+    try {
+        $folders = Get-ChildItem -Directory -Path $RootProjectsPath -ErrorAction Stop
+    }
+    catch {
+        Write-Log ("Cannot list folders under " + $RootProjectsPath + ": " + $_.Exception.Message) "ERROR"
+        return $null
+    }
+
+    if ($folders.Count -eq 0) {
+        Write-Log ("No folders found under " + $RootProjectsPath) "ERROR"
+        return $null
+    }
+
+    return Show-InteractiveMenu -Title "Select Root Project Folder" -Items $folders
+}
+
+# ============================================
+# Project Folder Selection
 # ============================================
 function Pick-ProjectFolder {
+    param([string]$BasePath)
+
     try {
         $folders = Get-ChildItem -Directory -Path $BasePath -ErrorAction Stop
     }
@@ -66,29 +183,7 @@ function Pick-ProjectFolder {
         return $null
     }
 
-    Write-Host "`nSelect a project folder:`n"
-    for ($i = 0; $i -lt $folders.Count; $i++) {
-        Write-Host "[$($i+1)] " + $folders[$i].Name
-    }
-
-    $choiceRaw = Read-Host "`nEnter number"
-
-    [int]$choice = $null
-    if (-not [int]::TryParse($choiceRaw, [ref]$choice)) {
-        Write-Host "Invalid selection (not a number)." -ForegroundColor Red
-        Write-Log "Invalid folder selection: not a number" "WARN"
-        return $null
-    }
-
-    if ($choice -lt 1 -or $choice -gt $folders.Count) {
-        Write-Host "Invalid selection (out of range)." -ForegroundColor Red
-        Write-Log "Invalid folder selection: out of range" "WARN"
-        return $null
-    }
-
-    $selected = $folders[$choice - 1]
-    Write-Log ("Selected project folder: " + $selected.Name)
-    return $selected
+    return Show-InteractiveMenu -Title "Select Project Folder" -Items $folders
 }
 
 # ============================================
@@ -131,21 +226,44 @@ function New-ClaudeTab {
 # Main
 # ============================================
 Clear-Host
-Write-Host "==== Claude Session Manager ===="
+Write-Host "==== Claude Session Manager ====" -ForegroundColor Cyan
 Write-Log "Session Manager started"
 
+# Step 1: Select root folder
+$rootFolder = Pick-RootFolder
+if (-not $rootFolder) {
+    Write-Host "No root folder selected. Exiting." -ForegroundColor Yellow
+    Write-Log "No root folder selected. Exiting."
+    exit
+}
+
+$rootFolderName = $rootFolder.Name
+$basePath = $rootFolder.FullName
+Write-Log ("Root folder selected: " + $rootFolderName + " at " + $basePath)
+
+# Step 2: Rename this session manager tab
+$sessionManagerTitle = "CPT:$rootFolderName"
+$host.UI.RawUI.WindowTitle = $sessionManagerTitle
+Write-Log ("Session manager tab renamed to: " + $sessionManagerTitle)
+
+# Step 3: Loop to open project tabs
 while ($true) {
-    $folder = Pick-ProjectFolder
+    $folder = Pick-ProjectFolder -BasePath $basePath
     if ($folder) {
         New-ClaudeTab -Path $folder.FullName
     }
     else {
-        Write-Host "Please select a valid folder." -ForegroundColor Yellow
+        Write-Host "No folder selected." -ForegroundColor Yellow
         Start-Sleep 1
         continue
     }
 
-    $again = Read-Host "`nOpen another Claude tab? (Y/N)"
+    Clear-Host
+    Write-Host "==== Claude Session Manager ====" -ForegroundColor Cyan
+    Write-Host "Root: " -NoNewline
+    Write-Host $rootFolderName -ForegroundColor Green
+    Write-Host ""
+    $again = Read-Host "Open another Claude tab? (Y/N)"
     if ($again -notin @("Y", "y")) { break }
 }
 
