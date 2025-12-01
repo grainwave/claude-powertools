@@ -23,9 +23,10 @@ This is a PowerShell utility toolkit for managing Claude Code CLI sessions on Wi
 
 - **scripts/claude-power-tools/ClaudeTabWrapper.ps1** - Core wrapper script that:
   - Changes to a specified project directory
-  - Launches Claude CLI in that context
+  - Automatically includes enterprise-level documentation from `docs` folder in root path
+  - Launches Claude CLI with additional working directories when available
   - Logs all activities with date-based log files
-  - Parameters: `$ProjectName` (display name), `$ProjectPath` (working directory)
+  - Parameters: `$ProjectName` (display name), `$ProjectPath` (working directory), `$RootPath` (root folder for enterprise docs)
 
 - **publish-local.ps1** - Deployment script that copies the scripts folder to `c:\tools\scripts`
 
@@ -40,8 +41,12 @@ This is a PowerShell utility toolkit for managing Claude Code CLI sessions on Wi
 - **Color coding**: Project tabs cycle through 8 predefined colors to visually distinguish multiple Claude sessions
 
 ### Tab Wrapper (ClaudeTabWrapper.ps1)
-- Receives project name and path parameters from the session manager
+- Receives project name, path, and root path parameters from the session manager
 - Changes to the project directory before launching Claude CLI
+- **Enterprise documentation support**: Automatically checks for a `docs` folder in the root path (e.g., `C:\Projects\Zespri-Github\docs`)
+  - If found, adds it as an additional working directory using Claude CLI's `--add-dir` flag
+  - This gives Claude context access to enterprise-level architecture docs, standards, and guidelines
+  - The docs folder is shared across all repos within the same root folder
 - Logs all startup and shutdown events
 - All paths (logging, wrapper location) are relative for portability
 
@@ -75,6 +80,22 @@ Navigation:
 - Press **Enter** to confirm selection
 - Or press **1-9** to quickly select by number
 - Press **Q** to quit the current menu
+
+## Enterprise Documentation Support
+
+PowerTools automatically includes enterprise-level documentation in Claude sessions:
+
+1. **Structure**: Place enterprise docs in a `docs` folder within your root project folder
+   - Example: `C:\Projects\Zespri-Github\docs\`
+
+2. **Automatic inclusion**: When launching a Claude session for any repo within that root folder, the docs folder is automatically added as an additional working directory
+
+3. **Benefits**:
+   - Share architecture documents, coding standards, and guidelines across all repos in a root folder
+   - Claude has context about enterprise patterns and requirements without manually specifying them
+   - Keeps enterprise docs separate from individual repo documentation
+
+4. **Logging**: Check the log files to confirm when enterprise docs are detected and included
 
 ## Logging
 

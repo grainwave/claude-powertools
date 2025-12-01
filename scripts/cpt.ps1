@@ -190,7 +190,10 @@ function Pick-ProjectFolder {
 # Launch new Claude tab
 # ============================================
 function New-ClaudeTab {
-    param([string]$Path)
+    param(
+        [string]$Path,
+        [string]$RootPath
+    )
 
     if (-not (Test-Path $Path)) {
         Write-Host "ERROR: Path does not exist: " + $Path -ForegroundColor Red
@@ -214,7 +217,7 @@ function New-ClaudeTab {
         wt.exe -w 0 nt `
             --title "...loading Claude" `
             --tabColor "$Color" `
-            pwsh -NoExit -File "$WrapperPath" -ProjectName "$FolderName" -ProjectPath "$Path" | Out-Null
+            pwsh -NoExit -File "$WrapperPath" -ProjectName "$FolderName" -ProjectPath "$Path" -RootPath "$RootPath" | Out-Null
     }
     catch {
         Write-Host "ERROR: Failed to open Claude tab." -ForegroundColor Red
@@ -250,7 +253,7 @@ Write-Log ("Session manager tab renamed to: " + $sessionManagerTitle)
 while ($true) {
     $folder = Pick-ProjectFolder -BasePath $basePath
     if ($folder) {
-        New-ClaudeTab -Path $folder.FullName
+        New-ClaudeTab -Path $folder.FullName -RootPath $basePath
     }
     else {
         Write-Host "No folder selected." -ForegroundColor Yellow

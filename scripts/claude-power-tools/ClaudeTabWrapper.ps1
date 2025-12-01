@@ -1,6 +1,7 @@
 param(
     [string]$ProjectName,
-    [string]$ProjectPath
+    [string]$ProjectPath,
+    [string]$RootPath
 )
 
 # ============================================
@@ -53,11 +54,32 @@ catch {
 }
 
 # ============================================
+# Check for enterprise docs folder
+# ============================================
+$DocsPath = $null
+if ($RootPath) {
+    $PotentialDocsPath = Join-Path $RootPath "docs"
+    if (Test-Path $PotentialDocsPath) {
+        $DocsPath = $PotentialDocsPath
+        Write-Log "Found enterprise docs folder at: $DocsPath"
+    }
+    else {
+        Write-Log "No enterprise docs folder found at: $PotentialDocsPath" "DEBUG"
+    }
+}
+
+# ============================================
 # Launch Claude in the foreground
 # ============================================
 Write-Log "Launching Claude CLI"
 try {
-    claude
+    if ($DocsPath) {
+        Write-Log "Including enterprise docs folder: $DocsPath"
+        claude --add-dir "$DocsPath"
+    }
+    else {
+        claude
+    }
     Write-Log "Claude exited normally"
 }
 catch {
