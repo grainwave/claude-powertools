@@ -1,5 +1,5 @@
 # =============================
-# Claude Session Manager v3.3
+# Claude Session Manager v3.4
 # =============================
 
 trap {
@@ -248,6 +248,51 @@ Write-Log ("Root folder selected: " + $rootFolderName + " at " + $basePath)
 $sessionManagerTitle = "CPT:$rootFolderName"
 $host.UI.RawUI.WindowTitle = $sessionManagerTitle
 Write-Log ("Session manager tab renamed to: " + $sessionManagerTitle)
+
+# Step 2.5: Check for index.md and offer to generate if missing
+$docsPath = Join-Path $basePath "docs"
+$indexPath = Join-Path $docsPath "index.md"
+
+if (-not (Test-Path $indexPath)) {
+    Write-Host ""
+    Write-Host "No index.md found in docs folder." -ForegroundColor Yellow
+    Write-Host "The index.md file provides an overview of all projects and their dependencies." -ForegroundColor Gray
+    Write-Host ""
+    $initialize = Read-Host "Would you like to generate it now? (Y/N)"
+
+    if ($initialize -in @("Y", "y")) {
+        Write-Host ""
+        Write-Host "Generating index.md..." -ForegroundColor Cyan
+        Write-Log "User chose to generate index.md for $rootFolderName"
+
+        $indexGeneratorPath = Join-Path $PSScriptRoot "claude-power-tools\IndexGenerator.ps1"
+        if (Test-Path $indexGeneratorPath) {
+            try {
+                & $indexGeneratorPath -RootPath $basePath -RootFolderName $rootFolderName
+                Write-Host ""
+                Write-Host "Index generation complete!" -ForegroundColor Green
+                Write-Log "Index.md generation completed successfully"
+                Start-Sleep 2
+            }
+            catch {
+                Write-Host "Error generating index: $($_.Exception.Message)" -ForegroundColor Red
+                Write-Log "Error generating index: $($_.Exception.Message)" "ERROR"
+                Start-Sleep 2
+            }
+        }
+        else {
+            Write-Host "Error: IndexGenerator.ps1 not found at $indexGeneratorPath" -ForegroundColor Red
+            Write-Log "IndexGenerator.ps1 not found at $indexGeneratorPath" "ERROR"
+            Start-Sleep 2
+        }
+    }
+    else {
+        Write-Log "User declined to generate index.md"
+    }
+}
+else {
+    Write-Log "index.md already exists at: $indexPath"
+}
 
 # Step 3: Loop to open project tabs
 while ($true) {
