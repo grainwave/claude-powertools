@@ -35,6 +35,7 @@ This is a PowerShell utility toolkit for managing Claude Code CLI sessions on Wi
   - Generates concise AI summaries for each project
   - Creates a comprehensive architecture overview showing how projects relate
   - Produces an index.md file in the docs folder with full context
+  - Generates a CLAUDE.md file in the docs folder to ensure architecture context in all future prompts
   - Parameters: `$RootPath` (root folder to scan), `$RootFolderName` (display name)
   - Note: Can take several minutes depending on number of projects
 
@@ -179,12 +180,23 @@ For a root folder with multiple .NET projects, index.md will contain:
 ### Benefits
 
 - **Context for Claude**: When Claude launches with `--add-dir` pointing to the docs folder, it automatically has access to the index.md file, giving it full context about all projects in the root folder. This is the key benefit - every Claude session knows about all projects.
+- **Automatic Architecture Awareness**: A CLAUDE.md file is generated in the docs folder alongside index.md, which instructs Claude to always consider the overall architecture when responding to prompts
 - **Intelligent Analysis**: Claude AI understands the actual code and structure, not just regex patterns, resulting in accurate summaries and dependency detection
 - **Architecture Understanding**: Get a high-level view of how projects integrate and depend on each other
 - **Project Overview**: Quickly understand what projects exist and their purposes
 - **Dependency Tracking**: See which projects depend on others, including NuGet package relationships
+- **Cross-Project Awareness**: Claude will check internal dependencies before suggesting changes that might affect other projects
 - **Onboarding**: New team members can read the index.md to understand the entire repository structure
 - **Living Documentation**: Delete and regenerate the index.md anytime to reflect current state
+
+### Generated Files
+
+When you generate the index, two files are created in the `docs` folder:
+
+1. **index.md**: The comprehensive project index with architecture overview and project details
+2. **CLAUDE.md**: Project-specific instructions that tell Claude to always reference index.md when responding to prompts
+
+Both files work together to ensure Claude has full context about your repository architecture in every session.
 
 ## Logging
 
